@@ -1,37 +1,40 @@
+# This Makefile is used under Linux
+
+MATLABDIR ?= /usr/local/matlab
 CXX ?= g++
+#CXX = g++-3.3
 CC ?= gcc
-CFLAGS = -Wall -Wconversion -O3 -fPIC
-LIBS = blas/blas.a
-SHVER = 3
-OS = $(shell uname)
-#LIBS = -lblas
+CFLAGS = -Wall -Wconversion -O3 -fPIC -I$(MATLABDIR)/extern/include -I..
 
-all: train predict
+MEX = $(MATLABDIR)/bin/mex
+MEX_OPTION = CC="$(CXX)" CXX="$(CXX)" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CFLAGS)"
+# comment the following line if you use MATLAB on a 32-bit computer
+MEX_OPTION += -largeArrayDims
+MEX_EXT = $(shell $(MATLABDIR)/bin/mexext)
 
-lib: linear.o tron.o blas/blas.a
-	if [ "$(OS)" = "Darwin" ]; then \
-		SHARED_LIB_FLAG="-dynamiclib -Wl,-install_name,liblinear.so.$(SHVER)"; \
-	else \
-		SHARED_LIB_FLAG="-shared -Wl,-soname,liblinear.so.$(SHVER)"; \
-	fi; \
-	$(CXX) $${SHARED_LIB_FLAG} linear.o tron.o blas/blas.a -o liblinear.so.$(SHVER)
+all:	matlab
 
-train: tron.o linear.o train.c blas/blas.a
-	$(CXX) $(CFLAGS) -o train train.c tron.o linear.o $(LIBS)
+matlab:	binary
 
-predict: tron.o linear.o predict.c blas/blas.a
-	$(CXX) $(CFLAGS) -o predict predict.c tron.o linear.o $(LIBS)
+octave:
+	@echo "please type make under Octave"
+binary: train.$(MEX_EXT) predict.$(MEX_EXT) libsvmread.$(MEX_EXT) libsvmwrite.$(MEX_EXT)
 
-tron.o: tron.cpp tron.h
-	$(CXX) $(CFLAGS) -c -o tron.o tron.cpp
+train.$(MEX_EXT): train.c ../linear.h ../tron.cpp ../linear.cpp linear_model_matlab.c \
+		../blas/daxpy.c ../blas/ddot.c ../blas/dnrm2.c ../blas/dscal.c
+	$(MEX) $(MEX_OPTION) train.c ../tron.cpp ../linear.cpp linear_model_matlab.c \
+		../blas/daxpy.c ../blas/ddot.c ../blas/dnrm2.c ../blas/dscal.c
 
-linear.o: linear.cpp linear.h
-	$(CXX) $(CFLAGS) -c -o linear.o linear.cpp
+predict.$(MEX_EXT): predict.c ../linear.h ../tron.cpp ../linear.cpp linear_model_matlab.c \
+		../blas/daxpy.c ../blas/ddot.c ../blas/dnrm2.c ../blas/dscal.c
+	$(MEX) $(MEX_OPTION) predict.c ../tron.cpp ../linear.cpp linear_model_matlab.c \
+		../blas/daxpy.c ../blas/ddot.c ../blas/dnrm2.c ../blas/dscal.c
 
-blas/blas.a: blas/*.c blas/*.h
-	make -C blas OPTFLAGS='$(CFLAGS)' CC='$(CC)';
+libsvmread.$(MEX_EXT):	libsvmread.c
+	$(MEX) $(MEX_OPTION) libsvmread.c
+
+libsvmwrite.$(MEX_EXT):	libsvmwrite.c
+	$(MEX) $(MEX_OPTION) libsvmwrite.c
 
 clean:
-	make -C blas clean
-	make -C matlab clean
-	rm -f *~ tron.o linear.o train predict liblinear.so.$(SHVER)
+	rm -f *~ *.o *.mex* *.obj
