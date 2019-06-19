@@ -1,2 +1,5 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+*.js linguist-language=MATLAB
+*.css linguist-language=MATLAB
+*.html linguist-language=MATLAB
+*.m linguist-language=MATLAB
+*.md linguist-language=MATLAB
